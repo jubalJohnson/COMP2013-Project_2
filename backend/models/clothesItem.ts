@@ -25,7 +25,7 @@ const clothesItemsSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["t-shirt", "hoddie", "shorts", "shirt", "pants"],
+    enum: ["t-shirt", "hoodie", "shorts", "shirt", "pants"],
     required: true,
   },
   color: {

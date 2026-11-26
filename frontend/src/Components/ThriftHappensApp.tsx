@@ -26,6 +26,8 @@ export interface ItemsContainerProps {
     userQuantity: number,
     price: number,
   ) => void;
+  handleDeleteItem: (id: number) => void;
+  handleEditItem: (id: number) => void;
 }
 
 export interface ItemsQuantity {
@@ -49,21 +51,21 @@ export interface CheckoutContainerProps {
   handleRemoveFromCheckout: (id: number) => void;
   handleEmptyCheckout: () => void;
 }
-
 export interface FormComponentProps {
   clothesArticle: ClothingProduct;
+  responseMessage: string;
   handleOnSubmit: (e: SubmitEvent<HTMLFormElement>) => void;
   handleOnChange: (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => void;
 }
-
 export default function ThriftHappensApp() {
   const [itemsQuantity, setItemsQuantity] = useState<ItemsQuantity[]>([]);
   const [products, setProducts] = useState<ClothingProduct[]>([]);
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+  const [responseMessage, setResponseMessage] = useState<string>("");
   const [clothesArticle, setClothesArticle] = useState<ClothingProduct>({
-    id: 0,
+    id: -1,
     name: "",
     image: "",
     fit: "men",
@@ -79,7 +81,9 @@ export default function ThriftHappensApp() {
   async function getProductsFromDB() {
     try {
       const { data } = await axios.get("http://localhost:3000/data");
-      setProducts(data);
+      setProducts(
+        data.sort((a: ClothingProduct, b: ClothingProduct) => b.id - a.id),
+      );
       setItemsQuantity(
         data.map((product: ClothingProduct) => ({
           id: product.id,
@@ -96,7 +100,9 @@ export default function ThriftHappensApp() {
     async function getProductsFromDB() {
       try {
         const { data } = await axios.get("http://localhost:3000/data");
-        setProducts(data);
+        setProducts(
+          data.sort((a: ClothingProduct, b: ClothingProduct) => b.id - a.id),
+        );
         setItemsQuantity(
           data.map((product: ClothingProduct) => ({
             id: product.id,
@@ -216,9 +222,82 @@ export default function ThriftHappensApp() {
       [name]: numericFields.includes(name) ? Number(value) : value,
     }));
   }
-  function handleOnSubmit(e: SubmitEvent<HTMLFormElement>) {
+  async function handleOnSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    return;
+    //if input on the form is a brand new article
+    // use the post route to create a new clothing article
+    if (clothesArticle.id === -1) {
+      try {
+        await axios
+          .post("http://localhost:3000/data", {
+            ...clothesArticle,
+            id: parseInt((Math.random() * 10000 + 50).toFixed(0)),
+          })
+          .then((response) => setResponseMessage(response.data.message));
+        await getProductsFromDB();
+        setClothesArticle({
+          id: -1,
+          name: "",
+          image: "",
+          fit: "men",
+          category: "hoodie",
+          size: "M",
+          color: "",
+          description: "",
+          price: 0,
+          quantity: 0,
+          itemQuantity: 0,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      try {
+        await axios
+          .patch(
+            `http://localhost:3000/data/${clothesArticle.id}`,
+            clothesArticle,
+          )
+          .then((response) => setResponseMessage(response.data.message))
+          .then(() => getProductsFromDB());
+        setClothesArticle({
+          id: -1,
+          name: "",
+          image: "",
+          fit: "men",
+          category: "hoodie",
+          size: "M",
+          color: "",
+          description: "",
+          price: 0,
+          quantity: 0,
+          itemQuantity: 0,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }
+
+  async function handleDeleteItem(id: number) {
+    try {
+      await axios
+        .delete(`http://localhost:3000/data/${id}`)
+        .then((response) => setResponseMessage(response.data.message))
+        .then(() => getProductsFromDB());
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  function handleEditItem(id: number) {
+    const itemToEdit: ClothingProduct = products.find(
+      (item) => item.id === id,
+    ) || { ...clothesArticle };
+    // if (!itemToEdit) {
+    //   throw new Error(`Product with id ${id} cannot be found`);
+    // }
+    setClothesArticle({ ...itemToEdit });
   }
 
   return (
@@ -230,6 +309,8 @@ export default function ThriftHappensApp() {
           itemsQuantity={itemsQuantity}
           handleAdjustQuantityCounter={handleAdjustQuantityCounter}
           handleAddToCheckout={handleAddToCheckout}
+          handleDeleteItem={handleDeleteItem}
+          handleEditItem={handleEditItem}
         />
         <CheckoutContainer
           checkoutItems={checkoutItems}
@@ -239,6 +320,7 @@ export default function ThriftHappensApp() {
         />
         <FormComponent
           clothesArticle={clothesArticle}
+          responseMessage={responseMessage}
           handleOnSubmit={handleOnSubmit}
           handleOnChange={handleOnChange}
         />
